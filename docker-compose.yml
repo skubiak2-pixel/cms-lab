@@ -1,0 +1,41 @@
+services:
+  db:
+    image: mariadb:11
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    environment:
+      MARIADB_DATABASE: wordpress
+      MARIADB_USER: wp
+      MARIADB_PASSWORD: wp_haslo_lab
+      MARIADB_ROOT_PASSWORD: root_haslo_lab
+    volumes:
+      - db:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  wordpress:
+    image: wordpress:latest
+    restart: unless-stopped
+    network_mode: "service:db"
+    environment:
+      WORDPRESS_DB_HOST: 127.0.0.1
+      WORDPRESS_DB_USER: wp
+      WORDPRESS_DB_PASSWORD: wp_haslo_lab
+      WORDPRESS_DB_NAME: wordpress
+      CODESPACE_NAME: ${CODESPACE_NAME}
+      PF_DOMAIN: ${GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN}
+      WORDPRESS_CONFIG_EXTRA: |
+        $$u = 'https://' . getenv('CODESPACE_NAME') . '-8080.' . getenv('PF_DOMAIN');
+        define('WP_HOME', $$u);
+        define('WP_SITEURL', $$u);
+        $$_SERVER['HTTPS'] = 'on';
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  db:
